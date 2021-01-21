@@ -1,0 +1,127 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: SAM App w/ API GW, CORS and Cognito configured
+
+Parameters:
+  Environment:
+    Type: String
+    Description: Environment stage (eg. dev, qa, prod)
+    Default: dev
+
+  UserPoolArn:
+    Type: String
+    Description: Cognito user pool ARN
+    Default: arn:aws:cognito-idp:us-east-1:646111714468:userpool/us-east-1_XPuQXiPax
+
+Globals:
+  Function:
+    Runtime: nodejs12.x
+    MemorySize: 128
+    Timeout: 30
+
+Resources:
+  Api:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref Environment
+      Cors:
+        AllowHeaders: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: "'*'"
+        MaxAge: "'3600'"
+        AllowMethods: "'OPTIONS,POST,PATCH,GET,PUT,DELETE'"
+      GatewayResponses:
+        DEFAULT_4xx:
+          ResponseParameters:
+            Headers:
+              Access-Control-Allow-Headers: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
+              Access-Control-Allow-Origin: "'*'"
+              Access-Control-Allow-Methods: "'OPTIONS,POST,PATCH,GET,PUT,DELETE'"
+        DEFAULT_5xx:
+          ResponseParameters:
+            Headers:
+              Access-Control-Allow-Headers: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
+              Access-Control-Allow-Origin: "'*'"
+              Access-Control-Allow-Methods: "'OPTIONS,POST,PATCH,GET,PUT,DELETE'"
+      Auth:
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !Ref UserPoolArn
+
+  EntityTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+        - AttributeName: GSI1pk
+          AttributeType: S
+        - AttributeName: GSI1sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1
+          KeySchema:
+            - AttributeName: GSI1pk
+              KeyType: HASH
+            - AttributeName: GSI1sk
+              KeyType: RANGE
+          Projection:
+            ProjectionType: 'ALL'
+      BillingMode: PAY_PER_REQUEST
+
+  BatchJobManagerSM:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Name: job-manager
+      Policies:
+        - LambdaInvokePolicy: 
+            FunctionName: !Ref ParseBatchResults
+        - DynamoDBCrudPolicy:
+            TableName: !Ref EntityTable
+      DefinitionUri: statemachine/batch-job-monitor.asl.json
+      DefinitionSubstitutions: 
+        ParseBatchResultsArn: !GetAtt ParseBatchResults.Arn
+        EntityTable: !Ref EntityTable
+
+  GetStatus:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/status-get.handler
+      Description: HTTP GET returns API status
+      Events:
+        PostResource:
+          Type: Api
+          Properties:
+            Path: /status
+            Method: GET
+            RestApiId: !Ref Api
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  ParseBatchResults:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.handler
+      Description: SFN helper to aggregate state
+      InlineCode: |
+        exports.handler = async (event) => {
+          const { DynamoDB: jobs = [] } = event;
+          const status = job => {
+            const { Item: { stat: { S } = {} } = {} } = job;
+            return S;
+          };
+          const total = jobs.length;
+          const complete = jobs.map(status).filter(i => i === 'COMPLETE').length;
+          return { completed: complete === total, complete, total };
+        }
+
+Outputs:
+  ApiUrl:
+    Description: An API URL
+    Value: !<!Sub> 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com/prod/'

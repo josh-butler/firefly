@@ -1,0 +1,104 @@
+{
+  "Comment": "Monitors the completion status of a batch of jobs",
+  "StartAt": "Wait",
+  "States": {
+    "Wait": {
+      "Type": "Wait",
+      "SecondsPath": "$.batch.intervalSeconds",
+      "Next": "QueryJobs"
+    },
+    "QueryJobs": {
+      "Type": "Map",
+      "InputPath": "$",
+      "ItemsPath": "$.batch.jobs",
+      "ResultPath": "$.batch.DynamoDB",
+      "Next": "ParseJobs",
+      "Iterator": {
+        "StartAt": "GetJobs",
+        "States": {
+          "GetJobs": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::dynamodb:getItem",
+            "Parameters": {
+              "TableName": "${EntityTable}",
+              "Key": {
+                "pk": {"S.$": "$.pk"},
+                "sk": {"S.$": "$.sk"}
+              }
+            },
+            "ResultSelector": {
+              "Item.$": "$.Item"
+            },
+            "ResultPath": "$",
+            "End": true
+          }
+        }
+      }
+    },
+    "ParseJobs": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "InputPath": "$",
+      "ResultSelector": {
+        "Payload.$": "$.Payload"
+      },
+      "ResultPath": "$.batch.results",
+      "Parameters": {
+        "FunctionName": "${ParseBatchResultsArn}",
+        "Payload": {
+          "DynamoDB.$": "$.batch.DynamoDB"
+        }
+      },
+      "Next": "Complete"
+    },
+    "Complete": {
+      "Type": "Choice",
+      "InputPath": "$",
+      "OutputPath": "$",
+      "Choices": [
+        {
+          "Variable": "$.batch.results.Payload.completed",
+          "BooleanEquals": true,
+          "Next": "Results"
+        }
+      ],
+      "Default": "Incomplete"
+    },
+    "Incomplete": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "InputPath": "$",
+      "Parameters": {
+        "TableName": "${EntityTable}",
+        "Key": {
+          "pk": {"S.$": "$.batch.pk"},
+          "sk": {"S.$": "$.batch.pk"}
+        },
+        "UpdateExpression": "ADD ctn :i",
+        "ExpressionAttributeValues": {":i": {"N": "1"}},
+        "ReturnValues": "ALL_NEW"
+      },
+      "ResultPath": "$.DynamoDBCount",
+      "Next": "TimedOut"
+    },
+    "TimedOut": {
+      "Type": "Choice",
+      "InputPath": "$",
+      "OutputPath": "$",
+      "Choices": [
+        {
+          "Variable": "$.DynamoDBCount.Attributes.ctn.N",
+          "StringLessThanPath": "$.batch.maxAttempts",
+          "Next": "Wait"
+        }
+      ],
+      "Default": "Results"
+    },
+    "Results": {
+        "Type": "Pass",
+        "InputPath": "$.batch",
+        "ResultPath": "$",
+        "End": true
+    }
+  }
+}

@@ -1,0 +1,14 @@
+node_modules
+
+# local dev
+coverage
+Makefile.env
+
+# SAM
+.aws-sam
+.env.local.json
+events/
+
+# Misc
+cognito-auth.json
+cognito-user.json
