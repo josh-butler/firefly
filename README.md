@@ -4,7 +4,7 @@ Demo SAM App
 
 ## State Machines
 ### Batch Manager
-A State Machine that submits and manages the lifecycle of batch jobs.
+A State Machine that manages the lifecycle of batch jobs.
 
 ### Batch Monitor
 A State Machine that can be nested within parent State Machines or used independently.
@@ -119,7 +119,7 @@ utilize a GSI (Global Secondary Index).
 
 ## SQS
 ### BatchQueue
-Received new batch jobs.
+Receives new batch jobs.
 
 ### BatchDLQ
 Dead letter queue for batches that could not be processed.
@@ -127,7 +127,10 @@ Dead letter queue for batches that could not be processed.
 ## EventBridge
 An EventBridge to handle all messages for this service and other related services.
 
-### Rules
-#### AllEventsRule
+### AllEventsRule
 Receives **all** messages publised to the event bus and logs them in the `EventsLogGroup`
 CloudWatch log group.
+
+## SSM Paramters
+* /firefly/sqs/batch-queue-url
+* /firefly/events/event-bus-name
