@@ -81,7 +81,20 @@ Resources:
   BatchDLQ:
     Type: AWS::SQS::Queue
 
-  BatchJobMonitorSM:
+  BatchManagerSM:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref BatchResults
+        - StepFunctionsExecutionPolicy:
+            StateMachineName: !GetAtt BatchMonitorSM.Name
+      DefinitionUri: statemachine/batch-manager.asl.json
+      DefinitionSubstitutions: 
+        ParseBatchResultsArn: !GetAtt BatchResults.Arn
+        BatchMonitorSMArn: !Ref BatchMonitorSM
+
+  BatchMonitorSM:
     Type: AWS::Serverless::StateMachine
     Properties:
       Policies:
@@ -89,7 +102,7 @@ Resources:
             FunctionName: !Ref ParseBatchResults
         - DynamoDBCrudPolicy:
             TableName: !Ref EntityTable
-      DefinitionUri: statemachine/batch-job-monitor.asl.json
+      DefinitionUri: statemachine/batch-monitor.asl.json
       DefinitionSubstitutions: 
         ParseBatchResultsArn: !GetAtt ParseBatchResults.Arn
         EntityTable: !Ref EntityTable
@@ -158,11 +171,16 @@ Resources:
     Properties:
       Handler: src/handlers/batch-manager.handler
       Description: Prepares & sends batches to BatchManagerSM
+      MemorySize: 512
+      Timeout: 900
+      ReservedConcurrentExecutions: 1
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref EntityTable
         - EventBridgePutEventsPolicy:
             EventBusName: !Ref EventBus
+        - StepFunctionsExecutionPolicy:
+            StateMachineName: !GetAtt BatchManagerSM.Name
       Events:
         ManageBatches:
           Type: Schedule
@@ -170,6 +188,28 @@ Resources:
             Schedule: rate(5 minutes)
             Description: Invoke manager on a schedule
             Enabled: False
+
+  BatchSubmit:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/batch-submit.handler
+      Description: Submits batch jobs
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref EntityTable
+        - EventBridgePutEventsPolicy:
+            EventBusName: !Ref EventBus
+
+  BatchResults:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/batch-results.handler
+      Description: Handles batch results
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref EntityTable
+        - EventBridgePutEventsPolicy:
+            EventBusName: !Ref EventBus
 
   EventBus:
     Type: AWS::Events::EventBus
