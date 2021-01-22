@@ -8,11 +8,6 @@ Parameters:
     Description: Environment stage (eg. dev, qa, prod)
     Default: dev
 
-  UserPoolArn:
-    Type: String
-    Description: Cognito user pool ARN
-    Default: arn:aws:cognito-idp:us-east-1:646111714468:userpool/us-east-1_XPuQXiPax
-
 Globals:
   Function:
     Runtime: nodejs12.x
@@ -45,7 +40,7 @@ Resources:
       Auth:
         Authorizers:
           CognitoAuthorizer:
-            UserPoolArn: !Ref UserPoolArn
+            UserPoolArn: '{{resolve:ssm:/firefly/cognito/user-pool-arn:1}}'
 
   EntityTable:
     Type: AWS::DynamoDB::Table
@@ -78,7 +73,6 @@ Resources:
   BatchJobManagerSM:
     Type: AWS::Serverless::StateMachine
     Properties:
-      Name: job-manager
       Policies:
         - LambdaInvokePolicy: 
             FunctionName: !Ref ParseBatchResults
