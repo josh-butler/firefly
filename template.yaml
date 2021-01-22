@@ -75,11 +75,6 @@ Resources:
             ProjectionType: 'ALL'
       BillingMode: PAY_PER_REQUEST
 
-  EventBus:
-    Type: AWS::Events::EventBus
-    Properties:
-      Name: !Ref AppName
-
   BatchQueue:
     Type: AWS::SQS::Queue
 
@@ -157,6 +152,54 @@ Resources:
             Queue: !GetAtt BatchQueue.Arn
             BatchSize: 1
             Enabled: true
+
+  EventBus:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name: !Ref AppName
+
+  EventsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/events/${EventBus}
+      RetentionInDays: 14
+
+  EventsToCWLogsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - events.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub ${AWS::StackName}-EventsCWLogsPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: 
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/events/*:*
+
+  AllEventsRule:
+    Type: AWS::Events::Rule
+    Properties:
+        Description: All events rule
+        State: ENABLED
+        EventBusName: !Ref EventBus
+        EventPattern:
+            account:
+              - !Ref AWS::AccountId
+        RoleArn: !GetAtt EventsToCWLogsRole.Arn
+        Targets:
+            - Arn: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${EventsLogGroup}
+              Id: EventsLogGroup
 
   BatchQueueURL:
     Type: AWS::SSM::Parameter
