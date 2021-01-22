@@ -5,14 +5,14 @@ Demo SAM App
 ## State Machines
 
 ### Batch Job Monitor
-An State Machine that can be nested within parent State Machines or used independently.
+A State Machine that can be nested within parent State Machines or used independently.
 Monitors the completion status of one or more external Jobs. The status of each job is returned when all jobs are considered "complete" or the batch times out.
 
 ![batch-job-monitor-sfn](./docs/batch-job-monitor-sfn.png)
 
 #### DynamoDB
 The service DynamoDB table must contain the target Batch record and one or more related Job records.
-The naming convention is not important, but each record must be uniquely identified with a `pk` & `sk` keys (partition & sort keys).
+The naming convention is not important, but each record must be uniquely identified with `pk` & `sk` keys (partition & sort keys).
 A Batch is considered "complete" when the `stat` attribute on **all** Jobs has been updated to `COMPLETE`.
 
 ##### Recomended Naming Convention
@@ -27,7 +27,7 @@ A Batch is considered "complete" when the `stat` attribute on **all** Jobs has b
 | Property  | Value |
 | ------------- | ------------- |
 | pk  | Partition Key of the parent Batch |
-| Id  | Array of Jobs (Partition & Sort keys) |
+| jobs  | Array of Jobs (Partition & Sort keys) |
 | intervalSeconds  | Seconds to wait between completion checks |
 | maxAttempts  | Number of times to check before timing out |
 

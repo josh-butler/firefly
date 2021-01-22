@@ -8,6 +8,11 @@ Parameters:
     Description: Environment stage (eg. dev, qa, prod)
     Default: dev
 
+  AppName:
+    Type: String
+    Description: Name of the App
+    Default: firefly
+
 Globals:
   Function:
     Runtime: nodejs12.x
@@ -40,8 +45,8 @@ Resources:
       Auth:
         Authorizers:
           CognitoAuthorizer:
-            UserPoolArn: '{{resolve:ssm:/firefly/cognito/user-pool-arn:1}}'
-
+            UserPoolArn: !<!Sub> '{{resolve:ssm:/${AppName}/cognito/user-pool-arn:1}}'
+  
   EntityTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -70,7 +75,20 @@ Resources:
             ProjectionType: 'ALL'
       BillingMode: PAY_PER_REQUEST
 
-  BatchJobManagerSM:
+  BatchQueue:
+    Type: AWS::SQS::Queue
+
+  BatchDLQ:
+    Type: AWS::SQS::Queue
+
+  BatchQueueURL:
+    Type: AWS::SSM::Parameter
+    Properties: 
+      Name: !Sub /${AppName}/sqs/batch-queue-url
+      Type: String
+      Value: !Ref BatchQueue
+
+  BatchJobMonitorSM:
     Type: AWS::Serverless::StateMachine
     Properties:
       Policies:
@@ -115,7 +133,38 @@ Resources:
           return { completed: complete === total, complete, total };
         }
 
+  BatchConsumer:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/batch-consumer.handler
+      Description: Batch SQS consumer
+      Timeout: 30
+      Policies:
+        - SQSPollerPolicy: 
+            QueueName: !Ref BatchQueue
+        - SQSSendMessagePolicy: 
+            QueueName: !Ref BatchDLQ
+        - DynamoDBCrudPolicy:
+            TableName: !Ref EntityTable
+      EventInvokeConfig:
+        MaximumRetryAttempts: 2
+        DestinationConfig:
+          OnFailure:
+            Type: SQS
+            Destination: !GetAtt BatchDLQ.Arn
+      Events:
+        SQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt BatchQueue.Arn
+            BatchSize: 1
+            Enabled: true
+
 Outputs:
   ApiUrl:
     Description: An API URL
     Value: !<!Sub> 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com/prod/'
+
+  BatchQueueURL:
+    Description: URL of the batch SQS queue
+    Value: !Ref BatchQueueURL
