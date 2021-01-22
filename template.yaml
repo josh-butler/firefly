@@ -75,18 +75,16 @@ Resources:
             ProjectionType: 'ALL'
       BillingMode: PAY_PER_REQUEST
 
+  EventBus:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name: !Ref AppName
+
   BatchQueue:
     Type: AWS::SQS::Queue
 
   BatchDLQ:
     Type: AWS::SQS::Queue
-
-  BatchQueueURL:
-    Type: AWS::SSM::Parameter
-    Properties: 
-      Name: !Sub /${AppName}/sqs/batch-queue-url
-      Type: String
-      Value: !Ref BatchQueue
 
   BatchJobMonitorSM:
     Type: AWS::Serverless::StateMachine
@@ -160,11 +158,29 @@ Resources:
             BatchSize: 1
             Enabled: true
 
+  BatchQueueURL:
+    Type: AWS::SSM::Parameter
+    Properties: 
+      Name: !Sub /${AppName}/sqs/batch-queue-url
+      Type: String
+      Value: !Ref BatchQueue
+
+  EventBusName:
+    Type: AWS::SSM::Parameter
+    Properties: 
+      Name: !Sub /${AppName}/events/event-bus-name
+      Type: String
+      Value: !Ref EventBus
+
 Outputs:
   ApiUrl:
-    Description: An API URL
-    Value: !<!Sub> 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com/prod/'
+    Description: API GW URL
+    Value: !<!Sub> 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/'
 
   BatchQueueURL:
     Description: URL of the batch SQS queue
     Value: !Ref BatchQueueURL
+
+  EventBusName:
+    Description: Name of the custom event bus
+    Value: !Ref EventBus
