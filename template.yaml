@@ -153,6 +153,24 @@ Resources:
             BatchSize: 1
             Enabled: true
 
+  BatchManager:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/batch-manager.handler
+      Description: Prepares & sends batches to BatchManagerSM
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref EntityTable
+        - EventBridgePutEventsPolicy:
+            EventBusName: !Ref EventBus
+      Events:
+        ManageBatches:
+          Type: Schedule
+          Properties:
+            Schedule: rate(5 minutes)
+            Description: Invoke manager on a schedule
+            Enabled: False
+
   EventBus:
     Type: AWS::Events::EventBus
     Properties:
