@@ -16,7 +16,7 @@ The naming convention is not important, but each record must be uniquely identif
 
 ##### Recomended Naming Convention
 | entity  | pk  | sk |
-| ------------- | ------------- |
+| ------------- | ------------- | ------------- |
 | Batch  | BATCH#1234 | BATCH#1234 |
 | Job | BATCH#1234 | JOB#3333 |
 | Job | BATCH#1234 | JOB#4444 |
