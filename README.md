@@ -13,6 +13,7 @@ Monitors the completion status of one or more external Jobs. The status of each 
 #### DynamoDB
 The service DynamoDB table must contain the target Batch record and one or more related Job records.
 The naming convention is not important, but each record must be uniquely identified with a `pk` & `sk` keys (partition & sort keys).
+A Batch is considered "complete" when the `stat` attribute on **all** Jobs has been updated to `COMPLETE`.
 
 ##### Recomended Naming Convention
 | entity  | pk  | sk |
