@@ -15,7 +15,7 @@ Monitors the completion status of one or more external Jobs. The status of each 
 #### DynamoDB
 The service DynamoDB table must contain the target Batch record and one or more related Job records.
 The naming convention is not important, but each record must be uniquely identified with `pk` & `sk` keys (partition & sort keys).
-A Batch is considered "complete" when the `stat` attribute on **all** Jobs has been updated to `COMPLETE`.
+A Batch is considered "complete" when the "status" attribute (`GSI1pk`) on **all** Jobs has been updated to `COMPLETE`.
 
 ##### Recomended Naming Convention
 | entity  | pk  | sk |
@@ -61,14 +61,14 @@ A Batch is considered "complete" when the `stat` attribute on **all** Jobs has b
   "DynamoDB": [
     {
       "Item": { 
-        "stat": { "S": "COMPLETE" },
+        "GSI1pk": { "S": "COMPLETE" },
         "pk": { "S": "BATCH#1234" },
         "sk": { "S": "JOB#5555" },
       }
     },
     {
       "Item": { 
-        "stat": { "S": "SUBMITTED" },
+        "GSI1pk": { "S": "SUBMITTED" },
         "pk": { "S": "BATCH#1234" },
         "sk": { "S": "JOB#6666" },
       }
