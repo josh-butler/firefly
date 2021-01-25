@@ -131,7 +131,7 @@ Resources:
         exports.handler = async (event) => {
           const { DynamoDB: jobs = [] } = event;
           const status = job => {
-            const { Item: { stat: { S } = {} } = {} } = job;
+            const { Item: { GSI1pk: { S } = {} } = {} } = job;
             return S;
           };
           const total = jobs.length;
@@ -158,6 +158,9 @@ Resources:
           OnFailure:
             Type: SQS
             Destination: !GetAtt BatchDLQ.Arn
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref EntityTable
       Events:
         SQSEvent:
           Type: SQS
