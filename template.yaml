@@ -184,6 +184,9 @@ Resources:
             EventBusName: !Ref EventBus
         - StepFunctionsExecutionPolicy:
             StateMachineName: !GetAtt BatchManagerSM.Name
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref EntityTable
       Events:
         ManageBatches:
           Type: Schedule
