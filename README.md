@@ -2,15 +2,38 @@
 
 Demo SAM App
 
+## High Level Flow
+1. An external state machine submits a batch job to the service by sending the JSON batch
+details to the service SQS queue using the `waitForTaskToken` type.
+
+2. The service consume the message in the SQS queue, validates and persists it in DDB.
+
+3. The service monitors the number of jobs submitted to the external service and submits all
+waiting batches when the external service has available job capacity.
+
+4. Submitted batches are monitored until all related jobs are updated in DDB as "COMPLETE" or
+the batch as timed out.
+
+5. Batch results are evaluated and the external parent state machine is notified of the results via
+the `SendTaskSuccess` or `SendTaskFailure` AWS SDK methods.
+
 ## State Machines
 ### Batch Manager
 A State Machine that manages the lifecycle of batch jobs.
+
+1. `GetBatch` - pulls all batch & job records from DDB (integration or handle in SubmitBatch?)
+2. `SubmitBatch` - submits all jobs to external service
+3a. `MonitorBatch` - starts nested `Batch Monitor` State Machine
+3b. `HandleFailure` - submittal failures are handled here, if any
+4. `PublishResults` - evaluate batch results & notify originating State Machine (pass or fail)
+
+![batch-manager-sfn](./docs/batch-manager-sfn.png)
 
 ### Batch Monitor
 A State Machine that can be nested within parent State Machines or used independently.
 Monitors the completion status of one or more external Jobs. The status of each job is returned when all jobs are considered "complete" or the batch times out.
 
-![batch-job-monitor-sfn](./docs/batch-job-monitor-sfn.png)
+![batch-monitor-sfn](./docs/batch-monitor-sfn.png)
 
 #### DynamoDB
 The service DynamoDB table must contain the target Batch record and one or more related Job records.
