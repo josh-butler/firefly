@@ -1,8 +1,18 @@
 const { EntityTable } = require('../ddb');
 
+// TODO: pass this in from env var
+const JOB_LIMIT = 8;
+
+const limit = (data, max) => {
+  const totalled = data.reduce((acc, val) => [...acc, +acc.slice(-1) + +val.total], []);
+  const allowed = totalled.filter(t => t <= max);
+  return data.slice(0, allowed.length);
+};
+
 class BatchManager {
   constructor(status) {
     this.status = status;
+    this.batches = [];
     this.props = this.defaultProps();
   }
 
@@ -13,32 +23,27 @@ class BatchManager {
     return { pk, prefix };
   }
 
+  jobCount() {
+    return this.batches.reduce((acc, val) => acc + val.total, 0);
+  }
+
+  maximum(available) {
+    return limit(this.batches, available);
+  }
+
   async getBatches() {
-    let err;
-    let result;
     const { pk, prefix } = this.props;
-
-    try {
-      result = await EntityTable.query(
-        pk,
-        { beginsWith: prefix, index: 'GSI1' },
-      );
-    } catch (e) {
-      console.error(e);
-      err = e;
-    }
-
-    // if (result) {
-    //   const { Items = [] } = result;
-    //   const sorted = Items.sort((a, b) => b.modified - a.modified);
-    //   data = sorted.map(batchAttrs);
-    // }
-
-    return { result, err };
+    const { Items = [] } = await EntityTable.query(pk, { beginsWith: prefix, index: 'GSI1' });
+    return Items.sort((a, b) => new Date(a.created) - new Date(b.created));
   }
 
   async send() {
-    return this.getBatches();
+    this.batches = await this.getBatches();
+    const available = JOB_LIMIT - this.jobCount();
+    const allowed = this.maximum(available);
+
+    console.log('allowed: ', allowed);
+    return null;
   }
 }
 
