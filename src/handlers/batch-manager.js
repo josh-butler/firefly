@@ -1,7 +1,11 @@
 const { EntityTable } = require('../ddb');
 
 // TODO: pass this in from env var
-const JOB_LIMIT = 8;
+const MAX_JOBS = 8;
+
+const batchAttrs = ({ pk }) => ({ pk });
+
+const jobsAttrs = ({ pk, sk }) => ({ pk, sk });
 
 const limit = (data, max) => {
   const totalled = data.reduce((acc, val) => [...acc, +acc.slice(-1) + +val.total], []);
@@ -9,10 +13,18 @@ const limit = (data, max) => {
   return data.slice(0, allowed.length);
 };
 
+const getBatch = async batch => {
+  const { pk } = batch;
+  const { Items = [] } = await EntityTable.query(pk);
+  return Items;
+};
+
 class BatchManager {
-  constructor(status) {
+  constructor(status, maxJobs) {
     this.status = status;
+    this.maxJobs = maxJobs;
     this.batches = [];
+    this.batchJobs = [];
     this.props = this.defaultProps();
   }
 
@@ -23,12 +35,16 @@ class BatchManager {
     return { pk, prefix };
   }
 
-  jobCount() {
+  get jobCount() {
     return this.batches.reduce((acc, val) => acc + val.total, 0);
   }
 
-  maximum(available) {
-    return limit(this.batches, available);
+  get available() {
+    return this.maxJobs - this.jobCount;
+  }
+
+  maximum() {
+    return limit(this.batches, this.available);
   }
 
   async getBatches() {
@@ -37,17 +53,35 @@ class BatchManager {
     return Items.sort((a, b) => new Date(a.created) - new Date(b.created));
   }
 
+  async buildBatchJobs() {
+    const allowed = this.maximum();
+    const batches = allowed.map(async batch => getBatch(batch));
+    return Promise.all(batches);
+  }
+
+  submitBatchJobs() {
+    return this.batchJobs.map(b => {
+      const [batch] = b.filter(i => i.entity === 'BATCH');
+      const jobs = b.filter(i => i.entity === 'JOB');
+      return {
+        batch: {
+          ...batchAttrs(batch), jobs: jobs.map(jobsAttrs), intervalSeconds: '60', maxAttempts: '10',
+        },
+      };
+    });
+  }
+
   async send() {
     this.batches = await this.getBatches();
-    const available = JOB_LIMIT - this.jobCount();
-    const allowed = this.maximum(available);
+    this.batchJobs = await this.buildBatchJobs();
+    console.log('this.batchJobs: ', this.batchJobs);
+    console.log(JSON.stringify(this.submitBatchJobs(), null, 2));
 
-    console.log('allowed: ', allowed);
     return null;
   }
 }
 
 exports.handler = async () => {
-  const manager = new BatchManager('QUEUED');
+  const manager = new BatchManager('QUEUED', MAX_JOBS);
   return manager.send();
 };
