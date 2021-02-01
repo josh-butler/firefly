@@ -187,6 +187,9 @@ Resources:
       Environment:
         Variables:
           TABLE_NAME: !Ref EntityTable
+          MANAGER_SM_ARN: !Ref BatchManagerSM
+          MONITOR_SM_ARN: !Ref BatchMonitorSM
+          MAX_JOBS: 10
       Events:
         ManageBatches:
           Type: Schedule

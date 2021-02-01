@@ -1,7 +1,6 @@
 const { EntityTable } = require('../ddb');
 
-// TODO: pass this in from env var
-const MAX_JOBS = 8;
+const { MAX_JOBS = 15 } = process.env;
 
 const batchAttrs = ({ pk }) => ({ pk });
 
