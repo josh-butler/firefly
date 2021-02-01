@@ -1,6 +1,7 @@
 const { EntityTable } = require('../ddb');
+const { startSFN } = require('../sfn');
 
-const { MAX_JOBS = 15 } = process.env;
+const { MANAGER_SM_ARN, MAX_JOBS = 15 } = process.env;
 
 const batchAttrs = ({ pk }) => ({ pk });
 
@@ -58,7 +59,7 @@ class BatchManager {
     return Promise.all(batches);
   }
 
-  submitBatchJobs() {
+  sfnBatchJobs() {
     return this.batchJobs.map(b => {
       const [batch] = b.filter(i => i.entity === 'BATCH');
       const jobs = b.filter(i => i.entity === 'JOB');
@@ -70,11 +71,19 @@ class BatchManager {
     });
   }
 
+  // async startBatchJobs() {
+  //   const batches = this.sfnBatchJobs();
+  //   const execs = batches.map(batch => startSFN(
+  //     { stateMachineArn: MANAGER_SM_ARN, input: JSON.stringify(batch) },
+  //   ));
+  //   return Promise.all(execs);
+  // }
+
   async send() {
     this.batches = await this.getBatches();
     this.batchJobs = await this.buildBatchJobs();
     console.log('this.batchJobs: ', this.batchJobs);
-    console.log(JSON.stringify(this.submitBatchJobs(), null, 2));
+    console.log(JSON.stringify(this.sfnBatchJobs(), null, 2));
 
     return null;
   }
