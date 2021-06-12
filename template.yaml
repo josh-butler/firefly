@@ -103,7 +103,7 @@ Resources:
             Auth:
               Authorizer: CognitoAuthorizer
 
-  # ====== Batch Jobs ======
+  # ====== BatchJob ======
   BatchJobQueue:
     Type: AWS::SQS::Queue
     Properties:
@@ -130,6 +130,57 @@ Resources:
           Type: SQS
           Properties:
             Queue: !GetAtt BatchJobQueue.Arn
+            BatchSize: 1  # this can probably be increased
+            Enabled: true
+
+  # ====== BatchManager ======
+  BatchManager:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Regulates & sends Batches to BatchSubmitQueue
+      Handler: src/handlers/batch-manager.handler
+      Policies:
+        - SQSSendMessagePolicy: 
+            QueueName: !Ref BatchSubmitQueue
+        - DynamoDBCrudPolicy:
+            TableName: !Ref EntityTable
+      Environment:
+        Variables:
+          NODE_ENV: !Ref Environment
+          ENTITY_TABLE: !Ref EntityTable
+
+  # ====== BatchSubmit ======
+  BatchSubmitQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      Tags:
+        - Key: project
+          Value: !Ref AppName
+
+  # BatchSubmitDLQ:
+  #   Type: AWS::SQS::Queue
+  #   Properties:
+  #     MessageRetentionPeriod: 86400
+  #     Tags:
+  #       - Key: project
+  #         Value: !Ref AppName
+
+  BatchSubmitConsumer:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Consumes incoming Baton batch jobs
+      Handler: src/handlers/batch-submit-consumer.handler
+      Policies:
+        - SQSPollerPolicy: 
+            QueueName: !Ref BatchJobQueue
+      Environment:
+        Variables:
+          NODE_ENV: !Ref Environment
+      Events:
+        SQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt BatchSubmitQueue.Arn
             BatchSize: 1  # this can probably be increased
             Enabled: true
 
