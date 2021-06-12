@@ -1,7 +1,6 @@
 /* eslint-disable max-classes-per-file */
-const { v4: uuid } = require('uuid');
-
 const { Batch: BatchEntity, Job: JobEntity } = require('../util/ddb');
+const { ksuid } = require('../util/util');
 
 const logInfo = (message, params = {}) => {
   const base = { type: 'BatchJobConsumer', message };
@@ -18,7 +17,7 @@ class Job {
 
   defaultProps() {
     const { testPlan, mediaFilePath } = this.data;
-    const id = uuid();
+    const id = ksuid();
     const ts = new Date().toISOString();
     const ets = `JOB#${ts}`;
     const sk = `JOB#${id}`;
@@ -57,7 +56,7 @@ class Batch {
     const {
       externalId: eid, owner, output, files = [],
     } = this.data;
-    const id = uuid();
+    const id = ksuid();
     const ts = new Date().toISOString();
     const pk = `BATCH#${id}`;
     const ets = `BATCH#${ts}`;

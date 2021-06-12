@@ -6,6 +6,7 @@
     "dependencies": {
         "aws-sdk": "^2.437.0",
         "dynamodb-toolbox": "^0.3.2",
+        "ksuid": "^2.0.0",
         "uuid": "^8.3.2"
     },
     "devDependencies": {
