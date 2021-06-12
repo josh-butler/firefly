@@ -9,6 +9,12 @@
     "SubmitBatch": {
         "Type": "Task",
         "Resource": "arn:aws:states:::lambda:invoke",
+        "Parameters": {
+          "FunctionName": "${BatchResultsArn}",
+          "Payload": {
+            "data": "test"
+          }
+        },
         "Next": "MonitorBatch",
         "Catch": [ {
           "ErrorEquals": [ "States.ALL" ],
