@@ -1,17 +1,17 @@
 const AWS = require('aws-sdk');
-
 const { Table, Entity } = require('dynamodb-toolbox');
+
+const { ENTITY_TABLE } = process.env;
 
 const DocumentClient = new AWS.DynamoDB.DocumentClient();
 
-const { TABLE_NAME } = process.env;
-
 const EntityTable = new Table({
-  name: TABLE_NAME,
+  name: ENTITY_TABLE,
   partitionKey: 'pk',
   sortKey: 'sk',
   indexes: {
     GSI1: { partitionKey: 'GSI1pk', sortKey: 'GSI1sk' },
+    GSI2: { partitionKey: 'GSI2pk', sortKey: 'GS21sk' },
   },
   DocumentClient,
 });
@@ -22,9 +22,13 @@ const Batch = new Entity({
     pk: { partitionKey: true },
     sk: { sortKey: true },
     GSI1pk: { alias: 'status' },
-    GSI1sk: { alias: 'eid' },
-    data: { type: 'map' },
-    tln: { type: 'number', alias: 'total' },
+    GSI1sk: { alias: 'sts' },
+    GSI2pk: { alias: 'owner' },
+    GSI2sk: { alias: 'ots' },
+    id: { type: 'string' },
+    eid: { type: 'string' },
+    output: { type: 'map' },
+    files: { type: 'list' },
   },
   table: EntityTable,
 });
@@ -35,8 +39,13 @@ const Job = new Entity({
     pk: { partitionKey: true },
     sk: { sortKey: true },
     GSI1pk: { alias: 'status' },
-    GSI1sk: { alias: 'eid' },
-    data: { type: 'map' },
+    GSI1sk: { alias: 'sts' },
+    GSI2pk: { alias: 'owner' },
+    GSI2sk: { alias: 'ots' },
+    id: { type: 'string' },
+    eid: { type: 'string' },
+    plan: { type: 'string' },
+    path: { type: 'string' },
   },
   table: EntityTable,
 });

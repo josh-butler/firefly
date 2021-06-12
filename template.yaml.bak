@@ -59,10 +59,6 @@ Resources:
           AttributeType: S
         - AttributeName: GSI1sk
           AttributeType: S
-        - AttributeName: GSI2pk
-          AttributeType: S
-        - AttributeName: GSI2sk
-          AttributeType: S
       KeySchema:
         - AttributeName: pk
           KeyType: HASH
@@ -77,17 +73,40 @@ Resources:
               KeyType: RANGE
           Projection:
             ProjectionType: 'ALL'
-        - IndexName: GSI2
-          KeySchema:
-            - AttributeName: GSI2pk
-              KeyType: HASH
-            - AttributeName: GSI2sk
-              KeyType: RANGE
-          Projection:
-            ProjectionType: 'ALL'
       BillingMode: PAY_PER_REQUEST
 
-  # ====== API Gateway Lambdas ======
+  BatchQueue:
+    Type: AWS::SQS::Queue
+
+  BatchDLQ:
+    Type: AWS::SQS::Queue
+
+  BatchManagerSM:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref BatchResults
+        - StepFunctionsExecutionPolicy:
+            StateMachineName: !GetAtt BatchMonitorSM.Name
+      DefinitionUri: statemachine/batch-manager.asl.json
+      DefinitionSubstitutions: 
+        BatchResultsArn: !GetAtt BatchResults.Arn
+        BatchMonitorSMArn: !Ref BatchMonitorSM
+
+  BatchMonitorSM:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Policies:
+        - LambdaInvokePolicy: 
+            FunctionName: !Ref ParseBatchResults
+        - DynamoDBCrudPolicy:
+            TableName: !Ref EntityTable
+      DefinitionUri: statemachine/batch-monitor.asl.json
+      DefinitionSubstitutions: 
+        ParseBatchResultsArn: !GetAtt ParseBatchResults.Arn
+        EntityTable: !Ref EntityTable
+
   GetStatus:
     Type: AWS::Serverless::Function
     Properties:
@@ -103,37 +122,104 @@ Resources:
             Auth:
               Authorizer: CognitoAuthorizer
 
-  # ====== Batch Jobs ======
-  BatchJobQueue:
-    Type: AWS::SQS::Queue
-    Properties:
-      Tags:
-        - Key: project
-          Value: !Ref AppName
-
-  BatchJobConsumer:
+  ParseBatchResults:
     Type: AWS::Serverless::Function
     Properties:
-      Description: Consumes incoming Baton batch jobs
-      Handler: src/handlers/batch-job-consumer.handler
+      Handler: index.handler
+      Description: SFN helper to aggregate state
+      InlineCode: |
+        exports.handler = async (event) => {
+          const { DynamoDB: jobs = [] } = event;
+          const status = job => {
+            const { Item: { GSI1pk: { S } = {} } = {} } = job;
+            return S;
+          };
+          const total = jobs.length;
+          const complete = jobs.map(status).filter(i => i === 'COMPLETE').length;
+          return { completed: complete === total, complete, total };
+        }
+
+  BatchConsumer:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/batch-consumer.handler
+      Description: Batch SQS consumer
+      Timeout: 30
       Policies:
         - SQSPollerPolicy: 
-            QueueName: !Ref BatchJobQueue
+            QueueName: !Ref BatchQueue
+        - SQSSendMessagePolicy: 
+            QueueName: !Ref BatchDLQ
         - DynamoDBCrudPolicy:
             TableName: !Ref EntityTable
+      EventInvokeConfig:
+        MaximumRetryAttempts: 2
+        DestinationConfig:
+          OnFailure:
+            Type: SQS
+            Destination: !GetAtt BatchDLQ.Arn
       Environment:
         Variables:
-          NODE_ENV: !Ref Environment
-          ENTITY_TABLE: !Ref EntityTable
+          TABLE_NAME: !Ref EntityTable
       Events:
         SQSEvent:
           Type: SQS
           Properties:
-            Queue: !GetAtt BatchJobQueue.Arn
-            BatchSize: 1  # this can probably be increased
+            Queue: !GetAtt BatchQueue.Arn
+            BatchSize: 1
             Enabled: true
 
-  # ====== EventBridge ======
+  BatchManager:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/batch-manager.handler
+      Description: Prepares & sends batches to BatchManagerSM
+      MemorySize: 512
+      Timeout: 900
+      ReservedConcurrentExecutions: 1
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref EntityTable
+        - EventBridgePutEventsPolicy:
+            EventBusName: !Ref EventBus
+        - StepFunctionsExecutionPolicy:
+            StateMachineName: !GetAtt BatchManagerSM.Name
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref EntityTable
+          MANAGER_SM_ARN: !Ref BatchManagerSM
+          MONITOR_SM_ARN: !Ref BatchMonitorSM
+          MAX_JOBS: 10
+      Events:
+        ManageBatches:
+          Type: Schedule
+          Properties:
+            Schedule: rate(5 minutes)
+            Description: Invoke manager on a schedule
+            Enabled: False
+
+  BatchSubmit:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/batch-submit.handler
+      Description: Submits batch jobs
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref EntityTable
+        - EventBridgePutEventsPolicy:
+            EventBusName: !Ref EventBus
+
+  BatchResults:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/batch-results.handler
+      Description: Handles batch results
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref EntityTable
+        - EventBridgePutEventsPolicy:
+            EventBusName: !Ref EventBus
+
   EventBus:
     Type: AWS::Events::EventBus
     Properties:
@@ -182,6 +268,13 @@ Resources:
             - Arn: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${EventsLogGroup}
               Id: EventsLogGroup
 
+  BatchQueueURL:
+    Type: AWS::SSM::Parameter
+    Properties: 
+      Name: !Sub /${AppName}/sqs/batch-queue-url
+      Type: String
+      Value: !Ref BatchQueue
+
   EventBusName:
     Type: AWS::SSM::Parameter
     Properties: 
@@ -193,6 +286,10 @@ Outputs:
   ApiUrl:
     Description: API GW URL
     Value: !<!Sub> 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/'
+
+  BatchQueueURL:
+    Description: URL of the batch SQS queue
+    Value: !Ref BatchQueueURL
 
   EventBusName:
     Description: Name of the custom event bus
