@@ -2,6 +2,7 @@
 const { EntityTable, Batch: BatchEntity, Job: JobEntity } = require('../util/ddb');
 // const { postBatonRequest } = require('../utils/lambda');
 // const { logBase64 } = require('../utils/util');
+const { publishEvent } = require('../util/events');
 
 const { BATCH_LIMIT } = require('../config');
 
@@ -75,6 +76,18 @@ class Job {
   }
 }
 
+const batchAttrs = ({
+  pk, id, eid,
+}) => ({
+  pk, id, eid,
+});
+
+const jobAttrs = ({
+  pk, sk, path, plan,
+}) => ({
+  pk, sk, path, plan,
+});
+
 class Batch {
   constructor(data) {
     this.data = data;
@@ -83,7 +96,8 @@ class Batch {
 
   defaultProps() {
     const { pk } = this.data;
-    return { pk };
+    const status = 'ACCEPTED';
+    return { pk, status };
   }
 
   async getJobItems() {
@@ -95,24 +109,26 @@ class Batch {
   }
 
   async process() {
-    const { pk } = this.props;
+    const { pk, status } = this.props;
     logInfo('processing batch', { pk });
 
     await this.getJobItems();
     this.jobs = this.items.map(item => new Job(item));
-    console.log('this.jobs: ', this.jobs);
 
-    // // submit jobs to Baton
+    this.payload = { ...batchAttrs(this.data), jobs: this.jobs.map(({ data }) => jobAttrs(data)) };
+
+    await publishEvent('SUBMIT_BATCH', this.payload);
+
+    // send SUBMIT_BATCH event
     // await Promise.all(this.jobs.map(job => job.submit()));
 
-    // update Batch status to SUBMITTED
-    // TODO: add taskId to the update
-    // await BatchEntity.update({ pk, sk: pk, status: 'SUBMITTED' });
+    // update Batch status to ACCEPTED
+    await BatchEntity.update({ pk, sk: pk, status });
 
-    // // update Jobs status to SUBMITTED
-    // return Promise.all(this.jobs.map(job => JobEntity.update(submittedParams(job))));
+    // update Jobs status to ACCEPTED
+    return Promise.all(this.jobs.map(job => JobEntity.update(submittedParams(job))));
 
-    return this.jobs;
+    // return this.jobs;
   }
 }
 
