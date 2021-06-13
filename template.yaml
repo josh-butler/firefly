@@ -137,52 +137,69 @@ Resources:
   BatchManager:
     Type: AWS::Serverless::Function
     Properties:
-      Description: Regulates & sends Batches to BatchSubmitQueue
+      Description: Manages the batch job sending process
       Handler: src/handlers/batch-manager.handler
       Policies:
-        - SQSSendMessagePolicy: 
-            QueueName: !Ref BatchSubmitQueue
+        - LambdaInvokePolicy:
+            FunctionName: !Ref BatchSubmit
         - DynamoDBCrudPolicy:
             TableName: !Ref EntityTable
       Environment:
         Variables:
           NODE_ENV: !Ref Environment
           ENTITY_TABLE: !Ref EntityTable
+          BATCH_SUBMIT_LAMBDA: !Ref BatchSubmit
 
   # ====== BatchSubmit ======
-  BatchSubmitQueue:
+  BatchSubmitDLQ:
     Type: AWS::SQS::Queue
     Properties:
+      MessageRetentionPeriod: 86400
       Tags:
         - Key: project
           Value: !Ref AppName
 
-  # BatchSubmitDLQ:
-  #   Type: AWS::SQS::Queue
-  #   Properties:
-  #     MessageRetentionPeriod: 86400
-  #     Tags:
-  #       - Key: project
-  #         Value: !Ref AppName
-
-  BatchSubmitConsumer:
+  BatchSubmit:
     Type: AWS::Serverless::Function
     Properties:
-      Description: Consumes incoming Baton batch jobs
-      Handler: src/handlers/batch-submit-consumer.handler
+      FunctionName: !Sub ${AppName}-batch-submit
+      Description: submits batch jobs to external api
+      Handler: src/handlers/batch-submit.handler
       Policies:
-        - SQSPollerPolicy: 
-            QueueName: !Ref BatchJobQueue
+        - DynamoDBCrudPolicy:
+            TableName: !Ref EntityTable
       Environment:
         Variables:
           NODE_ENV: !Ref Environment
-      Events:
-        SQSEvent:
-          Type: SQS
-          Properties:
-            Queue: !GetAtt BatchSubmitQueue.Arn
-            BatchSize: 1  # this can probably be increased
-            Enabled: true
+          ENTITY_TABLE: !Ref EntityTable
+      EventInvokeConfig:
+        MaximumEventAgeInSeconds: 600
+        MaximumRetryAttempts: 2
+        DestinationConfig:
+          OnFailure:
+            Type: SQS
+            Destination: !GetAtt BatchSubmitDLQ.Arn
+
+  # ====== BatchSubmit ======
+  
+  # BatchSubmitConsumer:
+  #   Type: AWS::Serverless::Function
+  #   Properties:
+  #     Description: Consumes incoming Baton batch jobs
+  #     Handler: src/handlers/batch-submit-consumer.handler
+  #     Policies:
+  #       - SQSPollerPolicy: 
+  #           QueueName: !Ref BatchJobQueue
+  #     Environment:
+  #       Variables:
+  #         NODE_ENV: !Ref Environment
+  #     Events:
+  #       SQSEvent:
+  #         Type: SQS
+  #         Properties:
+  #           Queue: !GetAtt BatchSubmitQueue.Arn
+  #           BatchSize: 1  # this can probably be increased
+  #           Enabled: true
 
   # ====== EventBridge ======
   EventBus:
