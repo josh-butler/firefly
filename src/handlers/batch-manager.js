@@ -11,7 +11,19 @@ const logInfo = (message, params = {}) => {
   console.info(JSON.stringify({ ...base, ...params }));
 };
 
-const submittedParams = ({ data: { pk, sk } }) => ({ pk, sk, status: 'SUBMITTED' });
+const submittedParams = ({ data: { pk, sk } }) => ({ pk, sk, status: 'ACCEPTED' });
+
+const batchAttrs = ({
+  pk, id, eid,
+}) => ({
+  pk, id, eid,
+});
+
+const jobAttrs = ({
+  pk, sk, path, plan,
+}) => ({
+  pk, sk, path, plan,
+});
 
 // async getOrder() {
 //   let err;
@@ -76,17 +88,6 @@ class Job {
   }
 }
 
-const batchAttrs = ({
-  pk, id, eid,
-}) => ({
-  pk, id, eid,
-});
-
-const jobAttrs = ({
-  pk, sk, path, plan,
-}) => ({
-  pk, sk, path, plan,
-});
 
 class Batch {
   constructor(data) {
@@ -116,19 +117,15 @@ class Batch {
     this.jobs = this.items.map(item => new Job(item));
 
     this.payload = { ...batchAttrs(this.data), jobs: this.jobs.map(({ data }) => jobAttrs(data)) };
-
-    await publishEvent('SUBMIT_BATCH', this.payload);
-
-    // send SUBMIT_BATCH event
-    // await Promise.all(this.jobs.map(job => job.submit()));
+    console.log('this.payload: ', this.payload);
 
     // update Batch status to ACCEPTED
     await BatchEntity.update({ pk, sk: pk, status });
 
     // update Jobs status to ACCEPTED
-    return Promise.all(this.jobs.map(job => JobEntity.update(submittedParams(job))));
+    await Promise.all(this.jobs.map(job => JobEntity.update(submittedParams(job))));
 
-    // return this.jobs;
+    return publishEvent('SUBMIT_BATCH', this.payload);
   }
 }
 
