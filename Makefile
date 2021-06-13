@@ -106,6 +106,9 @@ test-single: ## Run unit tests
 invoke: sam-clean ## Invoke individual Lambda
 	sam local invoke $(LAMBDA_NAME) --parameter-overrides $(SAM_LOCAL_PARAMS) --event $(LAMBDA_EVENT) --env-vars $(LAMBDA_ENV) $(AWS_OPTIONS)
 
+invoke-out: ## Invoke individual Lambda & pipe logs to file 
+	make invoke > invoke.out 2>&1
+
 api: sam-clean ## Start the API GW locally
 	sam local start-api --parameter-overrides $(SAM_LOCAL_PARAMS) --env-vars $(LAMBDA_ENV) $(AWS_OPTIONS)
 

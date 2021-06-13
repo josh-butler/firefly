@@ -8,6 +8,7 @@ Makefile.env
 .aws-sam
 .env.local.json
 events/
+invoke.out
 
 # Misc
 cognito-auth.json

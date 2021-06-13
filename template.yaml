@@ -140,15 +140,15 @@ Resources:
       Description: Manages the batch job sending process
       Handler: src/handlers/batch-manager.handler
       Policies:
-        - LambdaInvokePolicy:
-            FunctionName: !Ref BatchSubmit
         - DynamoDBCrudPolicy:
             TableName: !Ref EntityTable
+        - EventBridgePutEventsPolicy:
+            EventBusName: !Ref EventBus
       Environment:
         Variables:
           NODE_ENV: !Ref Environment
           ENTITY_TABLE: !Ref EntityTable
-          BATCH_SUBMIT_LAMBDA: !Ref BatchSubmit
+          EVENT_BUS_NAME: !Ref EventBus
 
   # ====== BatchSubmit ======
   BatchSubmitDLQ:
