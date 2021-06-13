@@ -176,6 +176,9 @@ Resources:
         MaximumEventAgeInSeconds: 600
         MaximumRetryAttempts: 2
         DestinationConfig:
+          OnSuccess:
+            Type: EventBridge
+            Destination: arn:aws:events:us-east-1:646111714468:event-bus/firefly
           OnFailure:
             Type: SQS
             Destination: !GetAtt BatchSubmitDLQ.Arn
