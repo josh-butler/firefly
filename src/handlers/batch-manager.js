@@ -1,7 +1,7 @@
 /* eslint-disable max-classes-per-file */
 const { EntityTable, Batch: BatchEntity, Job: JobEntity } = require('../util/ddb');
 const { publishEvent } = require('../util/events');
-const { BATCH_LIMIT } = require('../config');
+const { BatchLimit } = require('../config');
 
 const logInfo = (message, params = {}) => {
   const base = { type: 'BatchManager', message };
@@ -108,6 +108,6 @@ class Batches {
 }
 
 exports.handler = async () => {
-  const batches = new Batches(BATCH_LIMIT);
+  const batches = new Batches(BatchLimit);
   return batches.process();
 };
