@@ -54,6 +54,11 @@ class Batch {
     this.items = result.Items || [];
   }
 
+  async submitBatchEvent() {
+    const detail = { ...this.attrs, jobs: this.jobs.map(job => job.attrs) };
+    return publishEvent('SUBMIT_BATCH', detail);
+  }
+
   async process() {
     const { pk, status } = this.props;
     logInfo('processing batch', { pk });
@@ -67,9 +72,8 @@ class Batch {
     // update Jobs status to ACCEPTED
     await Promise.all(this.jobs.map(job => JobEntity.update(job.putParams)));
 
-    this.payload = { ...this.attrs, jobs: this.jobs.map(job => job.attrs) };
-
-    return publishEvent('SUBMIT_BATCH', this.payload);
+    // TODO: eval testCfg before sending event
+    return this.submitBatchEvent();
   }
 }
 
@@ -98,7 +102,6 @@ class Batches {
 
     await this.getBatchItems();
     this.batches = this.items.map(item => new Batch(item));
-    console.log('this.batches: ', this.batches);
 
     return Promise.all(this.batches.map(batch => batch.process()));
   }
