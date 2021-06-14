@@ -103,7 +103,7 @@ Resources:
             Auth:
               Authorizer: CognitoAuthorizer
 
-  # ====== BatchJob ======
+  # ====== Batch Management ======
   BatchJobQueue:
     Type: AWS::SQS::Queue
     Properties:
@@ -133,7 +133,6 @@ Resources:
             BatchSize: 1  # this can probably be increased
             Enabled: true
 
-  # ====== BatchManager ======
   BatchManager:
     Type: AWS::Serverless::Function
     Properties:
@@ -150,7 +149,6 @@ Resources:
           ENTITY_TABLE: !Ref EntityTable
           EVENT_BUS_NAME: !Ref EventBus
 
-  # ====== BatchSubmit ======
   BatchSubmitDLQ:
     Type: AWS::SQS::Queue
     Properties:
@@ -168,41 +166,27 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref EntityTable
+        - LambdaInvokePolicy:
+            FunctionName: !Ref ExternalInterface
       Environment:
         Variables:
           NODE_ENV: !Ref Environment
           ENTITY_TABLE: !Ref EntityTable
+          EXTERNAL_INTERFACE_LAMBDA: !Ref ExternalInterface
       EventInvokeConfig:
         MaximumEventAgeInSeconds: 600
         MaximumRetryAttempts: 2
         DestinationConfig:
-          OnSuccess:
-            Type: EventBridge
-            Destination: arn:aws:events:us-east-1:646111714468:event-bus/firefly
           OnFailure:
             Type: SQS
             Destination: !GetAtt BatchSubmitDLQ.Arn
 
-  # ====== BatchSubmit ======
-  
-  # BatchSubmitConsumer:
-  #   Type: AWS::Serverless::Function
-  #   Properties:
-  #     Description: Consumes incoming Baton batch jobs
-  #     Handler: src/handlers/batch-submit-consumer.handler
-  #     Policies:
-  #       - SQSPollerPolicy: 
-  #           QueueName: !Ref BatchJobQueue
-  #     Environment:
-  #       Variables:
-  #         NODE_ENV: !Ref Environment
-  #     Events:
-  #       SQSEvent:
-  #         Type: SQS
-  #         Properties:
-  #           Queue: !GetAtt BatchSubmitQueue.Arn
-  #           BatchSize: 1  # this can probably be increased
-  #           Enabled: true
+  ExternalInterface:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: interface for sending requests to an external service
+      FunctionName: external-interface
+      Handler: src/handlers/external-interface.handler
 
   # ====== EventBridge ======
   EventBus:
