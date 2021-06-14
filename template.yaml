@@ -160,7 +160,6 @@ Resources:
   BatchSubmit:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub ${AppName}-batch-submit
       Description: submits batch jobs to external api
       Handler: src/handlers/batch-submit.handler
       Policies:
@@ -173,6 +172,18 @@ Resources:
           NODE_ENV: !Ref Environment
           ENTITY_TABLE: !Ref EntityTable
           EXTERNAL_INTERFACE_LAMBDA: !Ref ExternalInterface
+      Events:
+        SubmitBatchEvent:
+          Type: EventBridgeRule
+          Properties:
+            # Input: String '{"Key": "Value"}' Data that is sent to target, if used, event is not sent
+            # InputPath: String path to part of event desired
+            EventBusName: !Ref EventBus
+            Pattern:
+              source:
+                - firefly.batch-manager
+              detail-type:
+                - SUBMIT_BATCH
       EventInvokeConfig:
         MaximumEventAgeInSeconds: 600
         MaximumRetryAttempts: 2
@@ -236,6 +247,21 @@ Resources:
         Targets:
             - Arn: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${EventsLogGroup}
               Id: EventsLogGroup
+
+  # Needs a EventsToCInvokeLambda role
+  # SubmitBatchEventRule:
+  #   Type: AWS::Events::Rule
+  #   Properties: 
+  #     Description: listen for submit batch event
+  #     EventBusName: !Ref EventBus
+  #     EventPattern: 
+  #       source:
+  #         - firefly.batch-manager
+  #       detail-type:
+  #         - SUBMIT_BATCH
+  #     Targets: 
+  #       - Arn: !GetAtt BatchSubmit.Arn
+  #         Id: BatchSubmitLambda
 
   EventBusName:
     Type: AWS::SSM::Parameter
