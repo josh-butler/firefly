@@ -14,11 +14,11 @@ const invokeLambda = async (FunctionName, Payload) => {
   return lambda.invoke(params).promise();
 };
 
-const interfaceSubmitJob = async body => {
+const submitFile = async body => {
   const payload = JSON.stringify(body);
   return invokeLambda(InterfaceLambda, payload);
 };
 
 module.exports = {
-  interfaceSubmitJob,
+  submitFile,
 };
