@@ -2,7 +2,6 @@
 
 // const { startSFN } = require('../sfn');
 // const { publishEvent } = require('../util/events');
-// const { ksuid } = require('../util/util');
 
 // const { EntityTable, Batch: BatchEntity, Job: JobEntity } = require('../util/ddb');
 const { submitFile } = require('../util/lambda');
@@ -15,10 +14,7 @@ class Job {
   async submitJob() {
     let err;
     let res;
-    const { sk, plan, path } = this.data;
-
-    // TODO pass job id from batch manager and use here vvv instead
-    const id = sk.split('#')[1];
+    const { id, plan, path } = this.data;
 
     try {
       const result = await submitFile({ type: 'submitFile', params: { plan, path, id } });

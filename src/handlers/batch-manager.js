@@ -20,11 +20,11 @@ class Job {
 
   get attrs() {
     const {
-      pk, sk, path, plan,
+      pk, sk, id, path, plan,
     } = this.data;
 
     return {
-      pk, sk, path, plan,
+      pk, sk, id, path, plan,
     };
   }
 }
