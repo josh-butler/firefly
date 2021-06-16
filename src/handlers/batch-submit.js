@@ -9,36 +9,45 @@ const { submitFile } = require('../util/lambda');
 class Job {
   constructor(data) {
     this.data = data;
+    this.resp = {};
+  }
+
+  get taskId() {
+    return this.resp.taskId;
   }
 
   async submitJob() {
     let err;
     let res;
+    let data;
+
     const { id, plan, path } = this.data;
 
     try {
       const result = await submitFile({ type: 'submitFile', params: { plan, path, id } });
-      console.log('result: ', result);
       const { Payload } = result;
       res = Payload;
     } catch (e) {
       console.error(e);
-      err = e;
+      err = e.message;
     }
 
     if (res && !err) {
-      const { data, error } = JSON.parse(res);
+      const { data: d, error } = JSON.parse(res);
       err = error;
-      // TODO get taskId from response
-      // this.taskId = ?;
+      data = d;
     }
 
-    return err;
+    return { data, err };
   }
 
   async submit() {
-    // console.log('this.data: ', this.data);
-    return this.submitJob();
+    const { data = {}, err } = await this.submitJob();
+    if (err) {
+      throw new Error(err);
+    }
+
+    this.resp = data;
   }
 }
 
@@ -62,10 +71,12 @@ class Batch {
 
   async submit() {
     this.jobs = this.props.jobs.map(item => new Job(item));
-    const submitted = await Promise.all(this.jobs.map(job => job.submit()));
-    console.log('submitted: ', submitted);
+    await Promise.all(this.jobs.map(job => job.submit()));
 
-    // - [ ] catch & throw API error
+    const taskIds = this.jobs.map(job => job.taskId);
+    console.log('taskIds: ', taskIds);
+
+    // - [x] catch & throw API error
     // - [ ] update DDB records w/ status & taskId
     // - [ ] start SFN
 
