@@ -44,6 +44,7 @@ const Job = new Entity({
     GSI2sk: { alias: 'ots' },
     id: { type: 'string' },
     eid: { type: 'string' },
+    tid: { alias: 'taskId' },
     plan: { type: 'string' },
     path: { type: 'string' },
   },

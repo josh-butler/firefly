@@ -3,7 +3,7 @@
 // const { startSFN } = require('../sfn');
 // const { publishEvent } = require('../util/events');
 
-// const { EntityTable, Batch: BatchEntity, Job: JobEntity } = require('../util/ddb');
+const { Batch: BatchEntity, Job: JobEntity } = require('../util/ddb');
 const { submitFile } = require('../util/lambda');
 
 class Job {
@@ -41,6 +41,14 @@ class Job {
     return { data, err };
   }
 
+  async updateStatus() {
+    const { pk, sk } = this.data;
+    const { taskId } = this;
+    return JobEntity.update({
+      pk, sk, status: 'SUBMITTED', taskId,
+    });
+  }
+
   async submit() {
     const { data = {}, err } = await this.submitJob();
     if (err) {
@@ -69,15 +77,24 @@ class Batch {
     };
   }
 
+  async updateStatus() {
+    const { pk } = this.props;
+    return BatchEntity.update({ pk, sk: pk, status: 'SUBMITTED' });
+  }
+
   async submit() {
     this.jobs = this.props.jobs.map(item => new Job(item));
+
     await Promise.all(this.jobs.map(job => job.submit()));
 
-    const taskIds = this.jobs.map(job => job.taskId);
-    console.log('taskIds: ', taskIds);
+    await Promise.all(this.jobs.map(job => job.updateStatus()));
+
+    await this.updateStatus();
+
+    console.log('this.jobs: ', this.jobs);
 
     // - [x] catch & throw API error
-    // - [ ] update DDB records w/ status & taskId
+    // - [x] update DDB records w/ status & taskId
     // - [ ] start SFN
 
     return null;
