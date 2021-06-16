@@ -85,10 +85,13 @@ class Batch {
   async submit() {
     this.jobs = this.props.jobs.map(item => new Job(item));
 
+    // submit all jobs
     await Promise.all(this.jobs.map(job => job.submit()));
 
+    // update status on all jobs
     await Promise.all(this.jobs.map(job => job.updateStatus()));
 
+    // update status on parent batch
     await this.updateStatus();
 
     console.log('this.jobs: ', this.jobs);
