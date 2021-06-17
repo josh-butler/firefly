@@ -199,6 +199,38 @@ Resources:
       FunctionName: external-interface
       Handler: src/handlers/external-interface.handler
 
+  ParseBatchResults:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.handler
+      Runtime: nodejs12.x
+      Description: SFN helper to aggregate state
+      InlineCode: |
+        exports.handler = async (event) => {
+          const { DynamoDB: jobs = [] } = event;
+          const status = job => {
+            const { Item: { GSI1pk: { S } = {} } = {} } = job;
+            return S;
+          };
+          const total = jobs.length;
+          const complete = jobs.map(status).filter(i => i === 'COMPLETE').length;
+          return { completed: complete === total, complete, total };
+        }
+
+  # ====== State Machines ======
+  BatchMonitorSM:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Policies:
+        - LambdaInvokePolicy: 
+            FunctionName: !Ref ParseBatchResults
+        - DynamoDBCrudPolicy:
+            TableName: !Ref EntityTable
+      DefinitionUri: statemachine/batch-monitor.asl.json
+      DefinitionSubstitutions: 
+        ParseBatchResultsArn: !GetAtt ParseBatchResults.Arn
+        EntityTable: !Ref EntityTable
+
   # ====== EventBridge ======
   EventBus:
     Type: AWS::Events::EventBus
