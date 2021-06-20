@@ -168,7 +168,7 @@ Resources:
         - LambdaInvokePolicy:
             FunctionName: !Ref ExternalInterface
         - StepFunctionsExecutionPolicy:
-            StateMachineName: !GetAtt BatchManagerSM.Name
+            StateMachineName: !GetAtt BatchMonitorSM.Name
       Environment:
         Variables:
           NODE_ENV: !Ref Environment
