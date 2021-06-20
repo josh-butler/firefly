@@ -1,5 +1,5 @@
 const { EntityTable } = require('../ddb');
-const { startSFN } = require('../sfn');
+const { startSFN } = require('../util/sfn');
 
 const { MANAGER_SM_ARN, MAX_JOBS = 15 } = process.env;
 

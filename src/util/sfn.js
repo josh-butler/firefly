@@ -2,6 +2,8 @@ const AWS = require('aws-sdk');
 
 const sfn = new AWS.StepFunctions();
 
+const { MonitorSmArn } = require('../config');
+
 // var params = {
 //   stateMachineArn: 'STRING_VALUE', /* required */
 //   input: 'STRING_VALUE',
@@ -59,8 +61,19 @@ const failSFN = async params => {
   return { res, err };
 };
 
+const startMonitorSFN = async params => {
+  const { err, res } = await startSFN(
+    { stateMachineArn: MonitorSmArn, input: JSON.stringify(params) },
+  );
+
+  if (err) { throw new Error(err.message); }
+
+  return res;
+};
+
 module.exports = {
   startSFN,
   passSFN,
   failSFN,
+  startMonitorSFN,
 };

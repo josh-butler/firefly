@@ -1,6 +1,5 @@
 /* eslint-disable max-classes-per-file */
-
-// const { startSFN } = require('../sfn');
+const { startMonitorSFN } = require('../util/sfn');
 // const { publishEvent } = require('../util/events');
 
 const { Batch: BatchEntity, Job: JobEntity } = require('../util/ddb');
@@ -14,6 +13,11 @@ class Job {
 
   get taskId() {
     return this.resp.taskId;
+  }
+
+  get attrs() {
+    const { pk, sk } = this.data;
+    return { pk, sk };
   }
 
   async submitJob() {
@@ -72,14 +76,26 @@ class Batch {
       } = {},
     } = this.event;
 
+    const intervalSeconds = '60';
+    const maxAttempts = '3';
+
     return {
-      pk, id, eid, jobs,
+      pk, id, eid, jobs, intervalSeconds, maxAttempts,
     };
   }
 
   async updateStatus() {
     const { pk } = this.props;
     return BatchEntity.update({ pk, sk: pk, status: 'SUBMITTED' });
+  }
+
+  async startMonitorSFN() {
+    const { pk, intervalSeconds, maxAttempts } = this.props;
+    const jobs = this.jobs.map(job => job.attrs);
+    const batch = {
+      pk, jobs, intervalSeconds, maxAttempts,
+    };
+    return startMonitorSFN({ batch });
   }
 
   async submit() {
@@ -94,13 +110,13 @@ class Batch {
     // update status on parent batch
     await this.updateStatus();
 
-    console.log('this.jobs: ', this.jobs);
-
     // - [x] catch & throw API error
     // - [x] update DDB records w/ status & taskId
-    // - [ ] start SFN
+    // - [x] start monitor SFN
+    // - [ ] swtich to parent SFN
+    // - [ ] send event
 
-    return null;
+    return this.startMonitorSFN();
   }
 }
 
