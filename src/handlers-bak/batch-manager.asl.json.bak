@@ -1,0 +1,37 @@
+{
+  "Comment": "Submits & manages a batch job's lifecycle",
+  "StartAt": "GetBatch",
+  "States": {
+    "GetBatch": {
+        "Type": "Pass",
+        "Next": "SubmitBatch"
+    },
+    "SubmitBatch": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::lambda:invoke",
+        "Parameters": {
+          "FunctionName": "${BatchResultsArn}",
+          "Payload": {
+            "data": "test"
+          }
+        },
+        "Next": "MonitorBatch",
+        "Catch": [ {
+          "ErrorEquals": [ "States.ALL" ],
+          "Next": "HandleFailure"
+       } ]
+    },
+    "MonitorBatch": {
+        "Type": "Pass",
+        "Next": "PublishResults"
+    },
+    "HandleFailure": {
+      "Type": "Pass",
+      "Next": "PublishResults"
+  },
+    "PublishResults": {
+        "Type": "Pass",
+        "End": true
+    }
+  }
+}

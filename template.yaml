@@ -221,6 +221,23 @@ Resources:
         }
 
   # ====== State Machines ======
+  BatchManagerSM:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Policies:
+        - LambdaInvokePolicy: 
+            FunctionName: !Ref ParseBatchResults
+        - Statement:
+          - Effect: Allow
+            Action:
+              - events:PutEvents
+            Resource: !Sub arn:aws:events:${AWS::Region}:${AWS::AccountId}:event-bus/${AppName}
+      DefinitionUri: statemachine/batch-manager.asl.json
+      DefinitionSubstitutions: 
+        ParseBatchResultsArn: !GetAtt ParseBatchResults.Arn
+        EntityTable: !Ref EntityTable
+        EventBusName: !Ref AppName
+
   BatchMonitorSM:
     Type: AWS::Serverless::StateMachine
     Properties:

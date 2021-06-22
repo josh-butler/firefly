@@ -4,31 +4,23 @@
   "States": {
     "GetBatch": {
         "Type": "Pass",
-        "Next": "SubmitBatch"
+        "Next": "SubmittedEvent"
     },
-    "SubmitBatch": {
+    "SubmittedEvent": {
         "Type": "Task",
-        "Resource": "arn:aws:states:::lambda:invoke",
+        "Resource": "arn:aws:states:::events:putEvents",
         "Parameters": {
-          "FunctionName": "${BatchResultsArn}",
-          "Payload": {
-            "data": "test"
-          }
+          "Entries": [
+            {
+              "EventBusName": "${EventBusName}",
+              "Source": "tact.sfn.batch-manager",
+              "DetailType": "SFN_BATCH_SUBMITTED",
+              "Detail": { "Message": "Test SFN event" }
+            }
+          ]
         },
-        "Next": "MonitorBatch",
-        "Catch": [ {
-          "ErrorEquals": [ "States.ALL" ],
-          "Next": "HandleFailure"
-       } ]
-    },
-    "MonitorBatch": {
-        "Type": "Pass",
         "Next": "PublishResults"
     },
-    "HandleFailure": {
-      "Type": "Pass",
-      "Next": "PublishResults"
-  },
     "PublishResults": {
         "Type": "Pass",
         "End": true
