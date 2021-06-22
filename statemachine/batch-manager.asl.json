@@ -9,6 +9,7 @@
     "SubmittedEvent": {
         "Type": "Task",
         "Resource": "arn:aws:states:::events:putEvents",
+        "Comment": "send batch submitted event",
         "Parameters": {
           "Entries": [
             {
@@ -19,7 +20,34 @@
             }
           ]
         },
-        "Next": "PublishResults"
+        "Next": "MonitorBatch"
+    },
+    "MonitorBatch": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::states:startExecution.sync",
+      "Comment": "start batch monitor state machine",
+      "Parameters": {
+        "StateMachineArn": "${BatchMonitorSM}",
+        "Input": {
+          "externalId": "ORDER_ABC123",
+          "owner": "boots",
+          "output": {
+            "type": "EventBridge",
+            "EventBusName": "firefly"
+          },
+          "files": [
+            {
+                "testPlan": "TACT_Low",
+                "mediaFilePath": "s3://dev-tc-media-download/VAST_BUTLERTESTTAGDELIVER1_5553077/b6c5e1e0-b9ab-11eb-b245-d38132f93a57/1gi7a1/low_e3d287c01bf08a4a1613ffc77359b8d7.mp4"
+            },
+            {
+                "testPlan": "TACT_Mezz",
+                "mediaFilePath": "s3://dev-tc-media-download/VAST_BUTLERTESTTAGDELIVER1_5553077/b6d57240-b9ab-11eb-b245-d38132f93a57/1gi7a1/mezz_7aa3973339d6f70190be28214192bc7a.mp4"
+            }
+          ]
+        }
+      },
+      "Next": "PublishResults"
     },
     "PublishResults": {
         "Type": "Pass",

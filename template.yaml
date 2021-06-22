@@ -227,6 +227,8 @@ Resources:
       Policies:
         - LambdaInvokePolicy: 
             FunctionName: !Ref ParseBatchResults
+        - StepFunctionsExecutionPolicy:
+            StateMachineName: !GetAtt BatchMonitorSM.Name
         - Statement:
           - Effect: Allow
             Action:
@@ -237,6 +239,7 @@ Resources:
         ParseBatchResultsArn: !GetAtt ParseBatchResults.Arn
         EntityTable: !Ref EntityTable
         EventBusName: !Ref AppName
+        BatchMonitorSM: !Ref BatchMonitorSM
 
   BatchMonitorSM:
     Type: AWS::Serverless::StateMachine
