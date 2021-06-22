@@ -225,11 +225,12 @@ Resources:
     Type: AWS::Serverless::StateMachine
     Properties:
       Policies:
-        - 'CloudWatchEventsFullAccess'
         - LambdaInvokePolicy:
             FunctionName: !Ref ParseBatchResults
         - StepFunctionsExecutionPolicy:
             StateMachineName: !GetAtt BatchMonitorSM.Name
+        - EventBridgePutEventsPolicy:
+            EventBusName: !Ref AppName 
       DefinitionUri: statemachine/batch-manager.asl.json
       DefinitionSubstitutions: 
         ParseBatchResultsArn: !GetAtt ParseBatchResults.Arn
