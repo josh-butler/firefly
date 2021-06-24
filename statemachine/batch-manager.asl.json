@@ -1,11 +1,7 @@
 {
   "Comment": "Submits & manages a batch job's lifecycle",
-  "StartAt": "GetBatch",
+  "StartAt": "SubmittedEvent",
   "States": {
-    "GetBatch": {
-        "Type": "Pass",
-        "Next": "SubmittedEvent"
-    },
     "SubmittedEvent": {
         "Type": "Task",
         "Resource": "arn:aws:states:::events:putEvents",
@@ -14,12 +10,13 @@
           "Entries": [
             {
               "EventBusName": "${EventBusName}",
-              "Source": "tact.sfn.batch-manager",
+              "Source": "${EventSource}",
               "DetailType": "SFN_BATCH_SUBMITTED",
-              "Detail": { "Message": "Test SFN event" }
+              "Detail": { "message": "batch job subitted" }
             }
           ]
         },
+        "ResultPath": null,
         "Next": "MonitorBatch"
     },
     "MonitorBatch": {
@@ -29,28 +26,37 @@
       "Parameters": {
         "StateMachineArn": "${BatchMonitorSM}",
         "Input": {
-          "batch": {
-            "pk": "BATCH#1uDOytYz85ANZ1bGItAssUalrgG",
-            "jobs": [
-              {
-                "pk": "BATCH#1uDOytYz85ANZ1bGItAssUalrgG",
-                "sk": "JOB#1uDOys2wFfuGtVVjQmFj2hvOCOZ"
-              },
-              {
-                "pk": "BATCH#1uDOytYz85ANZ1bGItAssUalrgG",
-                "sk": "JOB#1uDOysaadxliuZyg6Bqufu8yrmt"
-              }
-            ],
-            "intervalSeconds": "60",
-            "maxAttempts": "3"
-          }
+          "batch.$": "$.batch"
         }
       },
+      "ResultSelector": {
+        "output.$": "States.StringToJson($.Output)"
+      },
+      "Next": "EvaluateResults"
+    },
+    "EvaluateResults": {
+      "Type": "Pass",
+      "Parameters": {
+        "passed.$": "$.output.results.Payload.completed"
+      },
+      "ResultPath": "$.results",
       "Next": "PublishResults"
     },
     "PublishResults": {
-        "Type": "Pass",
-        "End": true
+      "Type": "Task",
+      "Resource": "arn:aws:states:::events:putEvents",
+      "Comment": "send batch results event",
+      "Parameters": {
+        "Entries": [
+          {
+            "EventBusName": "${EventBusName}",
+            "Source": "${EventSource}",
+            "DetailType": "SFN_BATCH_RESULTS",
+            "Detail": { "passed.$": "$.results.passed" }
+          }
+        ]
+      },
+      "End": true
     }
   }
 }

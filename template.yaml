@@ -230,12 +230,14 @@ Resources:
         - StepFunctionsExecutionPolicy:
             StateMachineName: !GetAtt BatchMonitorSM.Name
         - EventBridgePutEventsPolicy:
-            EventBusName: !Ref AppName 
+            EventBusName: !Ref AppName
+        - 'CloudWatchEventsFullAccess'
       DefinitionUri: statemachine/batch-manager.asl.json
       DefinitionSubstitutions: 
         ParseBatchResultsArn: !GetAtt ParseBatchResults.Arn
         EntityTable: !Ref EntityTable
         EventBusName: !Ref AppName
+        EventSource: firefly.sfn.batch-manager
         BatchMonitorSM: !Ref BatchMonitorSM
 
   BatchMonitorSM:
