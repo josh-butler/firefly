@@ -1,5 +1,5 @@
 /* eslint-disable max-classes-per-file */
-const { startMonitorSFN } = require('../util/sfn');
+const { startManagerSFN } = require('../util/sfn');
 // const { publishEvent } = require('../util/events');
 
 const { Batch: BatchEntity, Job: JobEntity } = require('../util/ddb');
@@ -89,13 +89,13 @@ class Batch {
     return BatchEntity.update({ pk, sk: pk, status: 'SUBMITTED' });
   }
 
-  async startMonitorSFN() {
+  async startManagerSFN() {
     const { pk, intervalSeconds, maxAttempts } = this.props;
     const jobs = this.jobs.map(job => job.attrs);
     const batch = {
       pk, jobs, intervalSeconds, maxAttempts,
     };
-    return startMonitorSFN({ batch });
+    return startManagerSFN({ batch });
   }
 
   async submit() {
@@ -110,13 +110,7 @@ class Batch {
     // update status on parent batch
     await this.updateStatus();
 
-    // - [x] catch & throw API error
-    // - [x] update DDB records w/ status & taskId
-    // - [x] start monitor SFN
-    // - [ ] swtich to parent SFN
-    // - [ ] send event
-
-    return this.startMonitorSFN();
+    return this.startManagerSFN();
   }
 }
 

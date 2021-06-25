@@ -168,13 +168,13 @@ Resources:
         - LambdaInvokePolicy:
             FunctionName: !Ref ExternalInterface
         - StepFunctionsExecutionPolicy:
-            StateMachineName: !GetAtt BatchMonitorSM.Name
+            StateMachineName: !GetAtt BatchManagerSM.Name
       Environment:
         Variables:
           NODE_ENV: !Ref Environment
           ENTITY_TABLE: !Ref EntityTable
           EXTERNAL_INTERFACE_LAMBDA: !Ref ExternalInterface
-          MONITOR_SM_ARN: !Ref BatchMonitorSM
+          MANAGER_SM_ARN: !Ref BatchManagerSM
       Events:
         SubmitBatchEvent:
           Type: EventBridgeRule
