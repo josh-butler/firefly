@@ -103,6 +103,47 @@ Resources:
             Auth:
               Authorizer: CognitoAuthorizer
 
+  # ====== Alert Event Management ======
+  AlertsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt AlertsDLQ.Arn
+        maxReceiveCount: 3
+      Tags:
+        - Key: project
+          Value: !Ref AppName
+
+  AlertsDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      MessageRetentionPeriod: 86400
+      Tags:
+        - Key: project
+          Value: !Ref AppName
+
+  AlertsConsumer:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: HTTP Alerts/Events SQS consumer
+      Handler: src/handlers/alerts-consumer.handler
+      # ReservedConcurrentExecutions: 1 # regulate processing rate - increase as needed
+      Policies:
+        - SQSPollerPolicy: 
+            QueueName: !Ref AlertsQueue
+        - SQSSendMessagePolicy: 
+            QueueName: !Ref AlertsDLQ
+      Environment:
+        Variables:
+          NODE_ENV: !Ref Environment
+      Events:
+        SQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt AlertsQueue.Arn
+            BatchSize: 1 # TODO increase after testing
+            Enabled: true
+
   # ====== Batch Management ======
   BatchJobQueue:
     Type: AWS::SQS::Queue

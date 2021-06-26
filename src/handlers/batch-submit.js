@@ -25,7 +25,11 @@ class Job {
     let res;
     let data;
 
-    const { id, plan, path } = this.data;
+    const {
+      pk, sk, plan, path,
+    } = this.data;
+
+    const id = `${pk}|${sk}`; // used as external contentId
 
     try {
       const result = await submitFile({ type: 'submitFile', params: { plan, path, id } });
@@ -72,12 +76,11 @@ class Batch {
   defaultProps() {
     const {
       detail: {
-        pk, id, eid, jobs = [],
+        pk, id, eid, cfg, jobs = [],
       } = {},
     } = this.event;
 
-    const intervalSeconds = '60';
-    const maxAttempts = '3';
+    const { intervalSeconds, maxAttempts } = cfg;
 
     return {
       pk, id, eid, jobs, intervalSeconds, maxAttempts,

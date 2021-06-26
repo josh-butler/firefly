@@ -9,6 +9,12 @@ const logInfo = (message, params = {}) => {
 
 const jsonBody = ({ body = {} }) => (JSON.parse(body));
 
+const defaultCfg = ({
+  output, submit = { intervalSeconds: '60', maxAttempts: '3' },
+}) => ({
+  output, submit,
+});
+
 class Job {
   constructor(data) {
     this.data = data;
@@ -54,7 +60,7 @@ class Batch {
 
   defaultProps() {
     const {
-      externalId: eid, owner, output, files = [],
+      externalId: eid, owner, files = [], cfg: conf = {},
     } = this.data;
     const id = ksuid();
     const ts = new Date().toISOString();
@@ -62,17 +68,18 @@ class Batch {
     const ets = `BATCH#${ts}`;
     const status = 'READY';
     const jobs = files.map(data => new Job(data));
+    const cfg = defaultCfg(conf);
     return {
-      pk, id, status, ts, ets, eid, owner, output, jobs, files,
+      pk, id, status, ts, ets, eid, owner, jobs, files, cfg,
     };
   }
 
   get valid() {
     const {
-      eid, owner, output, jobs,
+      eid, owner, jobs, cfg,
     } = this.props;
 
-    const params = [eid, owner, output].every(i => i);
+    const params = [eid, owner, cfg.output].every(i => i);
     const jobParams = !!(jobs.length && jobs.every(i => i.valid));
 
     return params && jobParams;
@@ -80,11 +87,11 @@ class Batch {
 
   async putBatch() {
     const {
-      pk, id, status, ets, eid, owner, output, files,
+      pk, id, status, ets, eid, owner, cfg, files,
     } = this.props;
 
     const item = {
-      pk, sk: pk, id, status, sts: ets, owner, ots: ets, output, files, eid,
+      pk, sk: pk, id, status, sts: ets, owner, ots: ets, cfg, files, eid,
     };
 
     return BatchEntity.put(item);

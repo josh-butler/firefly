@@ -42,8 +42,12 @@ class Batch {
   }
 
   get attrs() {
-    const { pk, id, eid } = this.data;
-    return { pk, id, eid };
+    const {
+      pk, id, eid, cfg,
+    } = this.data;
+    return {
+      pk, id, eid, cfg,
+    };
   }
 
   async getJobItems() {

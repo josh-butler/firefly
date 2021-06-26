@@ -27,7 +27,7 @@ const Batch = new Entity({
     GSI2sk: { alias: 'ots' },
     id: { type: 'string' },
     eid: { type: 'string' },
-    output: { type: 'map' },
+    cfg: { type: 'map' },
     files: { type: 'list' },
   },
   table: EntityTable,
