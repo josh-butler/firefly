@@ -80,7 +80,7 @@ class Batch {
       } = {},
     } = this.event;
 
-    const { intervalSeconds, maxAttempts } = cfg;
+    const { submit: { intervalSeconds, maxAttempts } } = cfg;
 
     return {
       pk, id, eid, jobs, intervalSeconds, maxAttempts,
