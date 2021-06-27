@@ -1,5 +1,7 @@
 const xml2js = require('xml2js');
 
+const { taskReport } = require('../util/lambda');
+
 const logMsg = (message, params = {}) => {
   const base = { type: 'BatonAlert', message };
   return JSON.stringify({ ...base, ...params });
@@ -23,14 +25,53 @@ const parseAlerts = async xmls => {
   return alerts.filter(i => i);
 };
 
+const getTaskReport = async taskId => {
+  let err;
+  let res;
+  let data;
+
+  try {
+    const result = await taskReport({ type: 'taskReport', params: { taskId } });
+    const { Payload } = result;
+    res = Payload;
+  } catch (e) {
+    console.error(e);
+    err = e.message;
+  }
+
+  if (res && !err) {
+    const { data: d, error } = JSON.parse(res);
+    err = error;
+    data = d;
+  }
+
+  return { data, err };
+};
+
+const handleTaskCompleted = async alert => {
+  const { contentId, taskId } = alert;
+  console.log('taskId: ', taskId);
+
+  // getTaskReport
+
+  // const [pk, sk] = contentId.split('|');
+  // console.log('pk: ', pk);
+  // console.log('sk: ', sk);
+
+  const { data, err } = await getTaskReport(taskId);
+  console.log('data: ', data);
+  console.log('err: ', err);
+  return 1;
+};
+
 const handleAlert = async alert => {
   let res;
   const { eventCode } = alert;
 
   switch (eventCode) {
     case 'TaskCompleted':
-      // res = handleTaskCompleted(alert);
-      res = {};
+      res = handleTaskCompleted(alert);
+      // res = {};
       console.log(`handle: ${eventCode}`);
       break;
     default:

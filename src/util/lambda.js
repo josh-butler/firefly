@@ -19,6 +19,12 @@ const submitFile = async body => {
   return invokeLambda(InterfaceLambda, payload);
 };
 
+const taskReport = async body => {
+  const payload = JSON.stringify(body);
+  return invokeLambda(InterfaceLambda, payload);
+};
+
 module.exports = {
   submitFile,
+  taskReport,
 };
