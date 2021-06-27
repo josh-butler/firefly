@@ -1,6 +1,7 @@
 const xml2js = require('xml2js');
 
 const { taskReport } = require('../util/lambda');
+const { uploadReport } = require('../util/s3');
 
 const logMsg = (message, params = {}) => {
   const base = { type: 'BatonAlert', message };
@@ -52,15 +53,17 @@ const handleTaskCompleted = async alert => {
   const { contentId, taskId } = alert;
   console.log('taskId: ', taskId);
 
-  // getTaskReport
-
   // const [pk, sk] = contentId.split('|');
   // console.log('pk: ', pk);
   // console.log('sk: ', sk);
 
   const { data, err } = await getTaskReport(taskId);
-  console.log('data: ', data);
-  console.log('err: ', err);
+  if (data) {
+    const res = await uploadReport(`${taskId}.xml`, data);
+    console.log('res: ', res);
+  }
+  // console.log('data: ', data);
+  // console.log('err: ', err);
   return 1;
 };
 

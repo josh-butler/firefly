@@ -4,4 +4,5 @@ module.exports = {
   InterfaceLambda: process.env.EXTERNAL_INTERFACE_LAMBDA || 'external-interface',
   BatchLimit: +process.env.BATCH_LIMIT || 1,
   ManagerSmArn: process.env.MANAGER_SM_ARN,
+  ReportBucket: process.env.REPORT_S3_BUCKET,
 };
