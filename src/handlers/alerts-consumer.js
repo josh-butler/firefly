@@ -23,6 +23,22 @@ const parseAlerts = async xmls => {
   return alerts.filter(i => i);
 };
 
+const handleAlert = async alert => {
+  let res;
+  const { eventCode } = alert;
+
+  switch (eventCode) {
+    case 'TaskCompleted':
+      // res = handleTaskCompleted(alert);
+      res = {};
+      console.log(`handle: ${eventCode}`);
+      break;
+    default:
+      console.log(`unhandled event: ${eventCode}`);
+  }
+  return res;
+};
+
 class BatonAlerts {
   constructor(event) {
     this.event = event;
@@ -35,10 +51,16 @@ class BatonAlerts {
     return { xmls };
   }
 
+  async processAlerts() {
+    const res = this.alerts.map(handleAlert);
+    await Promise.all(res);
+  }
+
   async process() {
     const { xmls } = this.props;
-    const alerts = await parseAlerts(xmls);
-    console.log(logMsg('alerts received', { alerts }));
+    this.alerts = await parseAlerts(xmls);
+    console.log(logMsg('alerts received', { alerts: this.alerts }));
+    return this.processAlerts();
   }
 }
 
