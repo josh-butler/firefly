@@ -1,6 +1,7 @@
 const { Job: JobEntity } = require('./ddb');
 const { taskReport } = require('./lambda');
 const { uploadReport } = require('./s3');
+const { publishEvent } = require('./events');
 
 const logMsg = (message, params = {}) => {
   const base = { type: 'BatonJobCompleted', message };
@@ -45,6 +46,18 @@ class CompletedJob {
     };
   }
 
+  async jobCompleteEvent() {
+    const {
+      pk, sk, eid, taskId,
+    } = this.props;
+    const { report } = this;
+
+    const detail = {
+      pk, sk, eid, taskId, report,
+    };
+    return publishEvent('JOB_COMPLETE', detail, 'firefly.alerts-consumer');
+  }
+
   async getReport() {
     const { taskId } = this.props;
     console.log(logMsg('fetching task report', { taskId }));
@@ -71,13 +84,21 @@ class CompletedJob {
     if (!err) {
       const res = await this.uploadReport();
       const { Location: report } = res;
+      this.report = report;
 
       // update Job status to Complete
-      await JobEntity.update({
-        pk, sk, status, report,
-      });
+      const resp = await JobEntity.update(
+        {
+          pk, sk, status, report,
+        },
+        { returnValues: 'all_new' },
+      );
+
+      const { Attributes: { eid } = {} } = resp;
+      this.props.eid = eid;
     }
-    console.log('err: ', err);
+
+    return this.jobCompleteEvent();
   }
 }
 
