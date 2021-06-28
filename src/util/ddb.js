@@ -47,6 +47,7 @@ const Job = new Entity({
     tid: { alias: 'taskId' },
     plan: { type: 'string' },
     path: { type: 'string' },
+    report: { type: 'string' },
   },
   table: EntityTable,
 });

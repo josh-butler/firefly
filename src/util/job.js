@@ -1,3 +1,4 @@
+const { Job: JobEntity } = require('./ddb');
 const { taskReport } = require('./lambda');
 const { uploadReport } = require('./s3');
 
@@ -38,8 +39,9 @@ class CompletedJob {
   defaultProps() {
     const { contentId, taskId } = this.event;
     const [pk, sk] = contentId.split('|');
+    const status = 'COMPLETE';
     return {
-      pk, sk, contentId, taskId,
+      pk, sk, contentId, taskId, status,
     };
   }
 
@@ -62,11 +64,18 @@ class CompletedJob {
   }
 
   async process() {
+    const { pk, sk, status } = this.props;
     const err = await this.getReport();
 
     // TODO handle error, updated ddb as failed & send failed event
     if (!err) {
-      await this.uploadReport();
+      const res = await this.uploadReport();
+      const { Location: report } = res;
+
+      // update Job status to Complete
+      await JobEntity.update({
+        pk, sk, status, report,
+      });
     }
     console.log('err: ', err);
   }

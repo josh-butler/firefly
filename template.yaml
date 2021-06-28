@@ -133,9 +133,12 @@ Resources:
             QueueName: !Ref AlertsQueue
         - SQSSendMessagePolicy: 
             QueueName: !Ref AlertsDLQ
+        - DynamoDBCrudPolicy:
+            TableName: !Ref EntityTable
       Environment:
         Variables:
           NODE_ENV: !Ref Environment
+          ENTITY_TABLE: !Ref EntityTable
           EXTERNAL_INTERFACE_LAMBDA: !Ref ExternalInterface
           REPORT_S3_BUCKET: scinewave
       Events:
